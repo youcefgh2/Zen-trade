@@ -1,194 +1,306 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>ZenChain Sender</title>
   <style>
+    :root { --green: #16a34a; --yellow: #facc15; --black: #071013; --card:#0b1619; --muted:#94a3b8; }
     body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background-color: #071013; /* أسود داكن */
-      color: white;
-      text-align: center;
-      padding: 20px;
+      margin: 0; font-family: Inter, Arial, Helvetica, sans-serif;
+      background: var(--black); color: #e6eef6; display:flex; align-items:center; justify-content:center;
+      min-height:100vh; padding:20px;
     }
-    header {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 5px;
-      margin-bottom: 20px;
+    .card {
+      width: 460px; max-width:95%; background: linear-gradient(180deg,#07121a,#0b1720);
+      border-radius:12px; padding:18px; box-shadow: 0 8px 30px rgba(2,6,23,0.7);
     }
-    header img {
-      height: 60px;
-    }
-    header h1 {
-      color: #FFD700; /* أصفر */
-      font-size: 28px;
-      margin: 0;
-    }
-    header p {
-      font-size: 16px;
-      color: #16a34a; /* أخضر */
-      margin: 0;
-      font-weight: bold;
-    }
-    .wallet-buttons button, #sendBtn {
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      margin: 10px;
-      font-weight: bold;
-    }
-    #connectBtn {
-      background-color: #16a34a; /* أخضر */
-      color: white;
-    }
-    #disconnectBtn {
-      background-color: transparent;
-      color: #FFD700;
-      border: 2px solid #FFD700;
-      display: none;
-    }
-    #status {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #00ffcc;
-    }
-    .tx-box {
-      background: #0b1619;
-      padding: 15px;
-      border-radius: 10px;
-      max-width: 300px;
-      margin: 20px auto;
-    }
-    input {
-      width: 90%;
-      padding: 8px;
-      margin: 5px 0;
-      border-radius: 6px;
-      border: none;
-      text-align: center;
-    }
-    #sendBtn {
-      background-color: #FFD700;
-      color: black;
-    }
-    footer a {
-      color: #16a34a;
-      text-decoration: none;
-      font-weight: bold;
-      margin: 0 10px;
-    }
+    header { display:flex; align-items:center; gap:12px; justify-content:center; margin-bottom:12px; }
+    header img { height:54px; width:54px; object-fit:contain; }
+    .title { text-align:center; }
+    .title h1 { margin:0; color: var(--yellow); font-size:20px; }
+    .title p { margin:0; color: var(--green); font-weight:700; }
+    .controls { display:flex; gap:8px; justify-content:center; margin:12px 0; flex-wrap:wrap; }
+    button { cursor:pointer; border-radius:8px; padding:10px 14px; font-weight:700; border: none; }
+    .btn-primary { background: var(--green); color: #fff; }
+    .btn-ghost { background: transparent; color: var(--yellow); border:2px solid rgba(250,204,21,0.15); }
+    .btn-yellow { background: var(--yellow); color: #071013; }
+    .status { background: rgba(255,255,255,0.02); padding:10px; border-radius:8px; margin-top:10px; font-size:13px; color:#c7f9e4; text-align:center; }
+    .form { background: var(--card); padding:12px; border-radius:10px; margin-top:12px; }
+    .form label { display:block; font-size:13px; color:#cbd5e1; margin-bottom:6px; font-weight:600; }
+    .form input { width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:transparent; color:inherit; margin-bottom:8px; }
+    .footer { display:flex; justify-content:center; gap:12px; margin-top:14px; }
+    .footer a { color: var(--green); text-decoration:none; font-weight:700; }
+    .small { font-size:12px; color:var(--muted); text-align:center; margin-top:8px; }
+    .txhash { font-size:13px; color:#a7f3d0; word-break:break-all; }
   </style>
 </head>
 <body>
-  <header>
-    <img src="logo.png" alt="ZenChain" />
-    <h1>ZenChain Sender</h1>
-    <p>By Youcef</p>
-  </header>
+  <div class="card">
+    <header>
+      <img src="logo.png" alt="Zenchain" id="siteLogo" />
+    </header>
 
-  <div class="wallet-buttons">
-    <button id="connectBtn">Connect Wallet</button>
-    <button id="disconnectBtn">Disconnect</button>
+    <div class="title">
+      <h1>ZenChain Sender</h1>
+      <p>By Youcef</p>
+    </div>
+
+    <div class="controls">
+      <button id="connectBtn" class="btn-primary">Connect Wallet</button>
+      <button id="disconnectBtn" class="btn-ghost" style="display:none">Disconnect</button>
+      <button id="switchBtn" class="btn-yellow">Switch / Add ZenChain Testnet</button>
+    </div>
+
+    <div class="status" id="status"> </div>
+
+    <div class="form">
+      <h3 style="margin:0 0 8px 0; color:#e6eef6">Send ZTC (Testnet)</h3>
+
+      <!-- يمكنك لصق عقد التوكن هنا افتراضياً او تركه فارغا لارسال native ZTC -->
+      <label for="tokenContract">ERC-20 contract (optional)</label>
+      <input id="tokenContract" type="text" placeholder="Paste token contract address or leave empty for native ZTC" />
+
+      <label for="receiver">Recipient address</label>
+      <input id="receiver" type="text" placeholder="0x..." />
+
+      <label for="amount">Amount (ZTC)</label>
+      <input id="amount" type="number" step="0.0001" placeholder="e.g. 0.01" />
+
+      <div style="display:flex; gap:8px; justify-content:center; margin-top:8px">
+        <button id="sendBtn" class="btn-yellow">Send</button>
+      </div>
+
+      <div class="small">Important: This uses MetaMask to sign tx. Do NOT share private keys.</div>
+      <div style="margin-top:8px; text-align:center" id="txArea"></div>
+    </div>
+
+    <div class="footer">
+      <a href="https://twitter.com/zenchain_labs" target="_blank">Twitter</a>
+      <a href="https://discord.gg/zenchain" target="_blank">Discord</a>
+    </div>
   </div>
 
-  <p id="status"></p>
-
-  <div class="tx-box">
-    <h3>Send ZTC (Testnet)</h3>
-    <input type="text" id="receiver" placeholder="Recipient Address" />
-    <input type="number" id="amount" placeholder="Amount (ZTC)" step="0.0001" />
-    <button id="sendBtn">Send</button>
-  </div>
-
-  <footer>
-    <a href="https://twitter.com/zenchain_labs" target="_blank">Twitter</a>
-    <a href="https://discord.gg/zenchain" target="_blank">Discord</a>
-  </footer>
-
-  <!-- مكتبة ethers -->
+  <!-- ethers.js (محمّل من CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 
   <script>
-    let provider;
-    let signer;
+  /*************************************************************************
+   * CONFIG - عدّل هنا إذا أردت وضع contract address افتراضياً
+   *************************************************************************/
+  const ZENCHAIN = {
+    chainIdHex: '0x20d8',      // 0x20d8 = 8408
+    chainIdDec: 8408,
+    chainName: 'ZenChain Testnet',
+    rpc: 'https://zenchain-testnet.api.onfinality.io/public',
+    explorer: 'https://zentrace.io' // استخدم explorer للبحث عن tx
+  };
 
-    const connectBtn = document.getElementById('connectBtn');
-    const disconnectBtn = document.getElementById('disconnectBtn');
-    const statusEl = document.getElementById('status');
-    const sendBtn = document.getElementById('sendBtn');
+  // ضع عقد ZTC هنا افتراضياً إن أردت (أو اتركه فارغا ليتم إدخاله في الحقل)
+  const DEFAULT_TOKEN_CONTRACT = ''; // '0x....'  <-- ضع عنوان العقد إن رغبت
 
-    statusEl.textContent = ""; // نخليها فاضية بدل idle
+  // Minimal ERC20 ABI (transfer + decimals,ُ balanceOf optional)
+  const ERC20_ABI = [
+    "function transfer(address to, uint256 value) returns (bool)",
+    "function decimals() view returns (uint8)",
+    "function symbol() view returns (string)",
+    "function name() view returns (string)"
+  ];
 
-    async function connectWallet() {
-      if (window.ethereum) {
+  /*************************************************************************
+   * UI عناصر
+   *************************************************************************/
+  const connectBtn = document.getElementById('connectBtn');
+  const disconnectBtn = document.getElementById('disconnectBtn');
+  const switchBtn = document.getElementById('switchBtn');
+  const statusEl = document.getElementById('status');
+  const sendBtn = document.getElementById('sendBtn');
+  const receiverInput = document.getElementById('receiver');
+  const amountInput = document.getElementById('amount');
+  const tokenInput = document.getElementById('tokenContract');
+  const txArea = document.getElementById('txArea');
+
+  /*************************************************************************
+   * State
+   *************************************************************************/
+  let provider = null;
+  let signer = null;
+  let userAddress = null;
+
+  // ضع القيمة الافتراضية لحقل العقد (لو ضبطت DEFAULT_TOKEN_CONTRACT)
+  if (DEFAULT_TOKEN_CONTRACT) tokenInput.value = DEFAULT_TOKEN_CONTRACT;
+
+  // وضع الحالة فارغة افتراضياً
+  statusEl.innerText = '';
+
+  /*************************************************************************
+   * Helpers
+   *************************************************************************/
+  function short(addr){
+    if(!addr) return '';
+    return addr.slice(0,6) + '...' + addr.slice(-4);
+  }
+
+  function setStatus(msg){
+    statusEl.innerText = msg;
+  }
+
+  function showTx(hash){
+    txArea.innerHTML = '<div class="txhash">Tx: ' + hash + '</div>';
+  }
+
+  /*************************************************************************
+   * Connect / Disconnect
+   *************************************************************************/
+  async function connectWallet(){
+    if(!window.ethereum){
+      setStatus('MetaMask not found — install MetaMask and reload.');
+      return;
+    }
+    try{
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      // نجبر ظهور نافذة اختيار الحساب
+      await provider.send('eth_requestAccounts', []);
+      signer = provider.getSigner();
+      userAddress = await signer.getAddress();
+      setStatus('✅ Connected: ' + short(userAddress));
+
+      // show buttons
+      connectBtn.style.display = 'none';
+      disconnectBtn.style.display = 'inline-block';
+    }catch(e){
+      console.error(e);
+      setStatus('❌ Connection failed or rejected.');
+    }
+  }
+
+  function disconnectWallet(){
+    provider = null;
+    signer = null;
+    userAddress = null;
+    setStatus(''); // نظيف الحالة
+    connectBtn.style.display = 'inline-block';
+    disconnectBtn.style.display = 'none';
+    txArea.innerHTML = '';
+  }
+
+  /*************************************************************************
+   * Switch / Add ZenChain Testnet
+   *************************************************************************/
+  async function switchToZenChain(){
+    if(!window.ethereum){
+      alert('MetaMask required');
+      return;
+    }
+    try{
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: ZENCHAIN.chainIdHex }]
+      });
+      setStatus('Switched to ZenChain Testnet (8408).');
+    }catch(err){
+      // 4902 => chain not found -> add
+      if(err && err.code === 4902){
         try {
-          provider = new ethers.providers.Web3Provider(window.ethereum);
-          // نجبر ظهور نافذة MetaMask حتى لو كان متصل
-          await provider.send("eth_requestAccounts", []);
-          signer = provider.getSigner();
-          const address = await signer.getAddress();
-          statusEl.textContent = "✅ Connected: " + address.slice(0, 6) + "..." + address.slice(-4);
-          connectBtn.style.display = "none";
-          disconnectBtn.style.display = "inline-block";
-        } catch (err) {
-          statusEl.textContent = "❌ Connection failed!";
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: ZENCHAIN.chainIdHex,
+              chainName: ZENCHAIN.chainName,
+              nativeCurrency: { name: 'ZTC', symbol: 'ZTC', decimals: 18 },
+              rpcUrls: [ZENCHAIN.rpc],
+              blockExplorerUrls: [ZENCHAIN.explorer]
+            }]
+          });
+          setStatus('ZenChain Testnet added. Please switch network in MetaMask to 8408.');
+        } catch(addErr){
+          console.error(addErr);
+          setStatus('Failed to add ZenChain Testnet: ' + (addErr.message||addErr));
         }
       } else {
-        statusEl.textContent = "⚠️ MetaMask not found!";
+        console.error(err);
+        setStatus('Failed to switch network: ' + (err.message||err));
       }
     }
+  }
 
-    function disconnectWallet() {
-      provider = null;
-      signer = null;
-      statusEl.textContent = "";
-      connectBtn.style.display = "inline-block";
-      disconnectBtn.style.display = "none";
+  /*************************************************************************
+   * Send (native or ERC20)
+   *************************************************************************/
+  async function sendAction(){
+    if(!signer){
+      alert('Connect wallet first!');
+      return;
     }
 
-    async function sendTransaction() {
-      if (!signer) {
-        alert("Connect wallet first!");
+    const to = receiverInput.value.trim();
+    const amount = amountInput.value.trim();
+    const tokenAddr = tokenInput.value.trim();
+
+    if(!to || !amount){
+      alert('Please enter recipient and amount.');
+      return;
+    }
+
+    try{
+      // تأكد من الشبكة
+      const net = await provider.getNetwork();
+      if(net.chainId !== ZENCHAIN.chainIdDec){
+        alert('Switch to ZenChain Testnet (chainId 8408) first.');
         return;
       }
 
-      const receiver = document.getElementById('receiver').value;
-      const amount = document.getElementById('amount').value;
+      setStatus('Preparing transaction...');
+      txArea.innerHTML = '';
 
-      if (!receiver || !amount) {
-        alert("Enter recipient and amount!");
-        return;
+      if(tokenAddr){
+        // send ERC-20
+        const contract = new ethers.Contract(tokenAddr, ERC20_ABI, signer);
+        // حاول قراءة decimals
+        let decimals = 18;
+        try { decimals = await contract.decimals(); } catch(e){ /* fallback 18 */ }
+        const value = ethers.utils.parseUnits(amount, decimals);
+        const tx = await contract.transfer(to, value);
+        setStatus('ERC-20 tx sent — waiting for hash...');
+        showTx(tx.hash);
+      } else {
+        // native send (ZTC)
+        const value = ethers.utils.parseEther(amount);
+        const tx = await signer.sendTransaction({ to, value });
+        setStatus('Native tx sent — waiting for hash...');
+        showTx(tx.hash);
       }
+    }catch(err){
+      console.error(err);
+      setStatus('❌ Transaction failed: ' + (err.message||err));
+    }
+  }
 
+  /*************************************************************************
+   * Events
+   *************************************************************************/
+  connectBtn.addEventListener('click', connectWallet);
+  disconnectBtn.addEventListener('click', disconnectWallet);
+  switchBtn.addEventListener('click', switchToZenChain);
+  sendBtn.addEventListener('click', sendAction);
+
+  // Optional: auto-check if already connected (on page load)
+  (async function(){
+    if(window.ethereum){
       try {
-        // تحقق من الشبكة (ZenChain Testnet)
-        const network = await provider.getNetwork();
-        if (network.chainId !== 7001) { 
-          alert("Switch to ZenChain Testnet first!");
-          return;
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if(accounts && accounts.length>0){
+          // set up provider & signer but still force user to click connect to show popup if needed
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+          signer = provider.getSigner();
+          userAddress = accounts[0];
+          setStatus('Connected: ' + short(userAddress));
+          connectBtn.style.display = 'none';
+          disconnectBtn.style.display = 'inline-block';
         }
-
-        const tx = await signer.sendTransaction({
-          to: receiver,
-          value: ethers.utils.parseEther(amount)
-        });
-
-        statusEl.textContent = "🚀 Transaction sent: " + tx.hash.slice(0, 10) + "...";
-      } catch (error) {
-        console.error(error);
-        statusEl.textContent = "❌ Transaction failed!";
-      }
+      } catch(e){ /* ignore */ }
     }
-
-    connectBtn.addEventListener('click', connectWallet);
-    disconnectBtn.addEventListener('click', disconnectWallet);
-    sendBtn.addEventListener('click', sendTransaction);
+  })();
   </script>
 </body>
 </html>
