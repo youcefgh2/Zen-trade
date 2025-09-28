@@ -1,0 +1,193 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Zen-trade — ZenChain Testnet Sender (By Youcef)</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+  <style>
+    :root{--green:#16a34a;--yellow:#facc15;--black:#000000;--bg:#071013}
+    *{box-sizing:border-box}
+    body{font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;color:#e6eef6}
+    .card{background:linear-gradient(180deg,#07121a, #0b1720);border:1px solid rgba(255,255,255,0.03);border-radius:12px;box-shadow:0 10px 30px rgba(2,6,23,0.6);padding:20px;width:480px;max-width:95%}
+    header{background:var(--black);color:var(--yellow);padding:10px;border-radius:8px;font-weight:800;text-align:center;margin:-20px -20px 12px -20px;display:flex;align-items:center;gap:12px;justify-content:center}
+    header img{height:44px}
+    h1{color:var(--green);margin:6px 0 6px;font-size:20px;text-align:center}
+    p.lead{color:#cbd5e1;text-align:center;margin:0 0 12px}
+    .row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;justify-content:center}
+    input[type=text], input[type=number]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit}
+    button{background:var(--green);color:white;border:none;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:700}
+    button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--yellow)}
+    button.disconnect{background:#b91c1c}
+    footer{display:flex;justify-content:center;gap:14px;margin-top:14px}
+    footer a{color:var(--yellow);text-decoration:none;font-weight:700}
+    .status{background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;margin-top:12px;font-size:13px;color:#e6eef6}
+    label{font-size:13px;color:#cbd5e1;font-weight:700;margin-bottom:6px;display:block}
+    .small{font-size:13px;color:#94a3b8;margin-top:8px;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <header>
+      <img src="zen_logo.png" alt="Zen logo"/>
+      <div>By Youcef</div>
+    </header>
+
+    <h1>Zen-trade — Send ZTC on Testnet</h1>
+    <p class="lead">Connect MetaMask, add ZenChain Testnet, and send native ZTC or ERC-20 test tokens.</p>
+
+    <div class="row">
+      <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+      <button class="disconnect" id="disconnectBtn" onclick="disconnectWallet()">Disconnect</button>
+      <button class="secondary" onclick="addZenChain()">Add ZenChain Testnet</button>
+    </div>
+
+    <div class="small" id="accountArea">Not connected</div>
+    <div class="small" id="networkArea">Network: unknown</div>
+
+    <label for="to">Recipient address</label>
+    <input id="to" type="text" placeholder="0x..." />
+
+    <label for="amount">Amount (in ZTC)</label>
+    <input id="amount" type="text" placeholder="0.1" />
+
+    <div class="small" style="margin-top:8px">Or send an ERC-20 token: paste contract address (optional)</div>
+    <input id="tokenContract" type="text" placeholder="ERC-20 contract address (optional)" style="margin-top:8px" />
+
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button onclick="sendTx()">Send</button>
+      <button class="secondary" onclick="copySiteLink()">Copy Site Link</button>
+    </div>
+
+    <div class="status" id="status">Status: idle</div>
+
+    <footer>
+      <a href="https://discord.gg/zenchain" target="_blank">Discord</a>
+      <a id="twitterLink" href="https://x.com/zenchainlabs" target="_blank">Twitter</a>
+    </footer>
+
+    <div class="small" style="margin-top:10px">Important: This page uses your MetaMask to sign transactions. Do not share your private key.</div>
+  </div>
+
+  <script>
+    // Correct ZenChain Testnet config (chainId 8408 -> 0x20d8)
+    const ZENCHAIN_TESTNET = {
+      chainId: '0x20d8',
+      chainIdDecimal: 8408,
+      chainName: 'ZenChain Testnet',
+      nativeCurrency: { name: 'ZTC', symbol: 'ZTC', decimals: 18 },
+      rpcUrls: ['https://zenchain-testnet.api.onfinality.io/public'],
+      blockExplorerUrls: ['https://zentrace.io']
+    };
+
+    let provider = null;
+    let signer = null;
+
+    function setStatus(msg){ document.getElementById('status').innerText = 'Status: ' + msg; }
+
+    async function connectWallet(){
+      try{
+        if(!window.ethereum) return alert('Please install MetaMask');
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        const addr = await signer.getAddress();
+        document.getElementById('accountArea').innerText = 'Account: ' + addr;
+        const net = await provider.getNetwork();
+        document.getElementById('networkArea').innerText = 'Network: ' + (net.chainId || 'unknown');
+        setStatus('Wallet connected');
+        if(net.chainId !== ZENCHAIN_TESTNET.chainIdDecimal){
+          // try to switch network
+          try{
+            await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: ZENCHAIN_TESTNET.chainId }] });
+            setStatus('Switched to ZenChain Testnet. Reconnect if needed.');
+          }catch(switchErr){
+            // 4902 -> add network
+            if(switchErr && switchErr.code === 4902){
+              setStatus('Network not found in MetaMask. Click Add ZenChain Testnet.');
+            }else{
+              console.error(switchErr);
+              setStatus('Unable to switch network: ' + (switchErr.message || switchErr));
+            }
+          }
+        }
+      }catch(e){
+        console.error(e);
+        setStatus('Error connecting wallet: ' + (e.message||e));
+      }
+    }
+
+    function disconnectWallet(){
+      signer = null;
+      provider = null;
+      document.getElementById('accountArea').innerText = 'Not connected';
+      document.getElementById('networkArea').innerText = 'Network: unknown';
+      setStatus('Wallet disconnected');
+    }
+
+    async function addZenChain(){
+      if(!window.ethereum) return alert('MetaMask is required');
+      try{
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: ZENCHAIN_TESTNET.chainId,
+            chainName: ZENCHAIN_TESTNET.chainName,
+            nativeCurrency: ZENCHAIN_TESTNET.nativeCurrency,
+            rpcUrls: ZENCHAIN_TESTNET.rpcUrls,
+            blockExplorerUrls: ZENCHAIN_TESTNET.blockExplorerUrls
+          }]
+        });
+        setStatus('ZenChain Testnet added — switch to it in MetaMask and reconnect.');
+      }catch(e){
+        console.error(e);
+        setStatus('Failed to add network: ' + (e.message||e));
+      }
+    }
+
+    async function sendTx(){
+      if(!signer) return alert('Connect your wallet first');
+      const to = document.getElementById('to').value.trim();
+      const amount = document.getElementById('amount').value.trim();
+      const token = document.getElementById('tokenContract').value.trim();
+      if(!to || !amount) return alert('Please enter recipient and amount');
+      setStatus('Preparing transaction...');
+      try{
+        const net = await provider.getNetwork();
+        if(net.chainId !== ZENCHAIN_TESTNET.chainIdDecimal){
+          return setStatus('Switch network to ZenChain Testnet (8408) first.');
+        }
+        if(token){
+          // fetch ABI from abi.json in repo
+          const res = await fetch('abi.json');
+          const ercAbi = await res.json();
+          const contract = new ethers.Contract(token, ercAbi, signer);
+          // try to read decimals if available
+          let decimals = 18;
+          try{ decimals = await contract.decimals(); } catch(e){ console.warn('decimals() not available, assuming 18'); }
+          const amt = ethers.utils.parseUnits(amount, decimals);
+          const tx = await contract.transfer(to, amt);
+          setStatus('ERC-20 transfer sent — tx hash: ' + tx.hash);
+        }else{
+          const tx = await signer.sendTransaction({
+            to: to,
+            value: ethers.utils.parseEther(amount)
+          });
+          setStatus('Native ZTC transfer sent — tx hash: ' + tx.hash);
+        }
+      }catch(err){
+        console.error(err);
+        setStatus('Error: ' + (err.message || err));
+      }
+    }
+
+    function copySiteLink(){
+      const link = window.location.href;
+      navigator.clipboard.writeText(link).then(()=>{
+        setStatus('Site link copied to clipboard');
+      }).catch(()=> setStatus('Unable to copy link'));
+    }
+  </script>
+</body>
+</html>
